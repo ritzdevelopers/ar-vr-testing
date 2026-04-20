@@ -9,7 +9,11 @@ export default function Home() {
           Client-rendered scene with interactive cursor, lighting, and model.
         </p>
 
-        <Scene modelSrc="/Vedvan Block-AB.fbx" modelPosition="0 0 -3" />
+        <Scene
+          modelSrc="/VD.glb"
+          modelPosition="0 0 -3"
+          cameraPosition="0 1.1 -5.4"
+        />
       </div>
     </main>
   );

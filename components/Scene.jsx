@@ -3,13 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export default function Scene({
-  modelSrc = "/Vedvan Block-AB.fbx",
+  modelSrc = "/VD.glb",
   modelPosition = "0 0 -3",
+  cameraPosition = "0 18 -1.4",
   height = "70vh",
 }) {
   const [isClientReady, setIsClientReady] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [clickCount, setClickCount] = useState(0);
+  const [modelStatus, setModelStatus] = useState("Loading model...");
   const modelRef = useRef(null);
 
   useEffect(() => {
@@ -61,6 +63,63 @@ export default function Scene({
     };
   }, [isClientReady]);
 
+  useEffect(() => {
+    const modelEl = modelRef.current;
+    if (!isClientReady || !modelEl) {
+      return undefined;
+    }
+
+    const handleModelLoaded = () => {
+      try {
+        const THREE = window.AFRAME?.THREE;
+        const mesh = modelEl.getObject3D("mesh");
+
+        if (!THREE || !mesh) {
+          setModelStatus("Model loaded.");
+          return;
+        }
+
+        const box = new THREE.Box3().setFromObject(mesh);
+        if (box.isEmpty()) {
+          setModelStatus("Model loaded, but mesh appears empty.");
+          return;
+        }
+
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+        box.getSize(size);
+        box.getCenter(center);
+
+        const maxDim = Math.max(size.x, size.y, size.z);
+        if (maxDim > 0) {
+          const fitScale = 1.6 / maxDim;
+          modelEl.object3D.scale.set(fitScale, fitScale, fitScale);
+        }
+
+        // Center model pivot and place it on the ground.
+        mesh.position.x -= center.x;
+        mesh.position.z -= center.z;
+        mesh.position.y -= box.min.y;
+
+        setModelStatus("Model loaded.");
+      } catch {
+        setModelStatus("Model loaded.");
+      }
+    };
+
+    const handleModelError = () => {
+      setModelStatus("Model failed to load. Check path and FBX format.");
+    };
+
+    modelEl.addEventListener("model-loaded", handleModelLoaded);
+    modelEl.addEventListener("model-error", handleModelError);
+
+    return () => {
+      modelEl.removeEventListener("model-loaded", handleModelLoaded);
+      modelEl.removeEventListener("model-error", handleModelError);
+    };
+  }, [isClientReady, modelSrc]);
+
   if (!isClientReady) {
     return (
       <div className="flex w-full items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300" style={{ height }}>
@@ -76,12 +135,12 @@ export default function Scene({
           <a-asset-item id="vedvan-model" src={modelSrc}></a-asset-item>
         </a-assets>
 
-        <a-entity camera look-controls position="0 1.6 0">
+        <a-entity camera look-controls position={cameraPosition}>
           <a-cursor color={isHovered ? "#22c55e" : "#ffffff"}></a-cursor>
         </a-entity>
 
         <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
-        <a-light type="directional" color="#ffffff" intensity="0.8" position="1 3 2"></a-light>
+        <a-light type="directional" color="#ffffff" intensity="1" position="1 3 2"></a-light>
 
         <a-plane
           position="0 -0.5 -3"
@@ -96,13 +155,13 @@ export default function Scene({
           ref={modelRef}
           {...modelProps}
           position={modelPosition}
-          scale="0.01 0.01 0.01"
+          scale="1 1 1"
           animation="property: rotation; to: 0 360 0; loop: true; dur: 12000; easing: linear"
         ></a-entity>
 
         <a-entity
           position="0 2.3 -3"
-          text={`value: ${isHovered ? "Hovering model" : `Clicks: ${clickCount}`}; align: center; color: #111827; width: 4`}
+          text={`value: ${isHovered ? "Hovering model" : `Clicks: ${clickCount}`} | ${modelStatus}; align: center; color: #111827; width: 6`}
         ></a-entity>
       </a-scene>
     </div>
