@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export default function Scene({
-  modelSrc = "/VD.glb",
+  modelSrc = "/Tower-A.glb",
   modelPosition = "0 0 -3",
-  cameraPosition = "0 18 -1.4",
+  cameraPosition = "0 1 -2.6",
   height = "70vh",
 }) {
   const [isClientReady, setIsClientReady] = useState(false);
@@ -96,6 +96,60 @@ export default function Scene({
           modelEl.object3D.scale.set(fitScale, fitScale, fitScale);
         }
 
+        // Improve GLB material appearance when textures/colors appear too dark.
+        mesh.traverse((node) => {
+          if (!node.isMesh || !node.material) {
+            return;
+          }
+
+          const materials = Array.isArray(node.material)
+            ? node.material
+            : [node.material];
+
+          materials.forEach((material) => {
+            if (material.map) {
+              if (THREE.SRGBColorSpace) {
+                material.map.colorSpace = THREE.SRGBColorSpace;
+              } else if (THREE.sRGBEncoding) {
+                material.map.encoding = THREE.sRGBEncoding;
+              }
+            }
+
+            if (material.emissiveMap) {
+              if (THREE.SRGBColorSpace) {
+                material.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+              } else if (THREE.sRGBEncoding) {
+                material.emissiveMap.encoding = THREE.sRGBEncoding;
+              }
+            }
+
+            // Some GLB assets become too dark due to baked AO without uv2 support.
+            if (material.aoMap) {
+              material.aoMapIntensity = 0;
+            }
+
+            if (typeof material.envMapIntensity === "number") {
+              material.envMapIntensity = Math.max(material.envMapIntensity, 2.2);
+            }
+
+            if (typeof material.metalness === "number") {
+              material.metalness = Math.min(material.metalness, 0.55);
+            }
+
+            if (typeof material.roughness === "number") {
+              material.roughness = Math.min(Math.max(material.roughness, 0.35), 0.8);
+            }
+
+            if (typeof material.emissiveIntensity === "number") {
+              material.emissiveIntensity = Math.max(material.emissiveIntensity, 0.35);
+            }
+
+            material.side = THREE.DoubleSide;
+
+            material.needsUpdate = true;
+          });
+        });
+
         // Center model pivot and place it on the ground.
         mesh.position.x -= center.x;
         mesh.position.z -= center.z;
@@ -130,7 +184,11 @@ export default function Scene({
 
   return (
     <div className="w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800" style={{ height }}>
-      <a-scene embedded renderer="antialias: true; colorManagement: true" background="color: #dbeafe">
+      <a-scene
+        embedded
+        renderer="antialias: true; colorManagement: true; physicallyCorrectLights: true; exposure: 2.3; toneMapping: ACESFilmic"
+        background="color: #dbeafe"
+      >
         <a-assets timeout="30000">
           <a-asset-item id="vedvan-model" src={modelSrc}></a-asset-item>
         </a-assets>
@@ -139,15 +197,19 @@ export default function Scene({
           <a-cursor color={isHovered ? "#22c55e" : "#ffffff"}></a-cursor>
         </a-entity>
 
-        <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
-        <a-light type="directional" color="#ffffff" intensity="1" position="1 3 2"></a-light>
+        <a-light type="ambient" color="#ffffff" intensity="1.8"></a-light>
+        <a-light type="hemisphere" color="#f8fbff" groundColor="#d1d5db" intensity="1.2"></a-light>
+        <a-light type="directional" color="#fff8ef" intensity="2.1" position="3 5 3"></a-light>
+        <a-light type="directional" color="#f0f9ff" intensity="1.4" position="-3 3 1"></a-light>
+        <a-light type="directional" color="#ffffff" intensity="1.1" position="0 2 -4"></a-light>
+        <a-sky color="#dbeafe"></a-sky>
 
         <a-plane
           position="0 -0.5 -3"
           rotation="-90 0 0"
           width="16"
           height="16"
-          color="#93c5fd"
+          color="#bfdbfe"
           shadow="receive: true"
         ></a-plane>
 

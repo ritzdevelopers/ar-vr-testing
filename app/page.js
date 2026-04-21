@@ -10,9 +10,9 @@ export default function Home() {
         </p>
 
         <Scene
-          modelSrc="/VD.glb"
+          modelSrc="/Tower-A.glb"
           modelPosition="0 0 -3"
-          cameraPosition="0 1.1 -5.4"
+          cameraPosition="0 1 -0.7"
         />
       </div>
     </main>
